@@ -8,6 +8,28 @@ const nextConfig: NextConfig = {
   // Disable server-side source maps in production — they consume significant
   // memory and CPU parsing .map files on every error stack trace.
   productionBrowserSourceMaps: false,
+  async headers() {
+    return [
+      {
+        // Apply to all routes
+        source: "/(.*)",
+        headers: [
+          {
+            // Allow AdSense iframes to be embedded by Google's ad servers.
+            // 'self' keeps same-origin frames working; googlesyndication covers
+            // the AdSense iframe origin.
+            key: "X-Frame-Options",
+            value: "SAMEORIGIN",
+          },
+          {
+            // Permissions policy: allow ads from Google's domains.
+            key: "Permissions-Policy",
+            value: "autoplay=(), camera=(), microphone=()",
+          },
+        ],
+      },
+    ];
+  },
   images: {
     // Images served from TMDB/YouTube CDNs directly — no server-side transform needed.
     // This eliminates the on-demand image processing that was causing CPU spikes.

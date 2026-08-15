@@ -13,6 +13,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const GA_ID = "G-5RNE9D5BN6";
+const ADSENSE_CLIENT = "ca-pub-3883277674447109";
 
 const geistSans = Geist({
   variable: "--font-sans",
@@ -89,8 +90,12 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} dark`}>
       <head>
-        {/* Google AdSense — must be a plain <script> in <head> with no extra
-            attributes. Next.js <Script> adds data-nscript which AdSense rejects. */}
+        {/*
+          Google AdSense loader — must be a plain <script> in <head>.
+          Next.js <Script> wraps it with data-nscript which AdSense rejects.
+          Admin can override the publisher src via the adsense.code setting;
+          falls back to the hardcoded publisher ID below.
+        */}
         {siteConfig.adsenseSrc ? (
           // eslint-disable-next-line @next/next/no-sync-scripts
           <script
@@ -102,7 +107,14 @@ export default async function RootLayout({
           <script
             dangerouslySetInnerHTML={{ __html: siteConfig.adsenseCode }}
           />
-        ) : null}
+        ) : (
+          // eslint-disable-next-line @next/next/no-sync-scripts
+          <script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
+            crossOrigin="anonymous"
+          />
+        )}
       </head>
       <body className="min-h-screen bg-black text-white antialiased">
         <PwaRegister />
