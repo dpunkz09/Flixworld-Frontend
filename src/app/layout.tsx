@@ -9,6 +9,7 @@ import Shell from "@/components/shell";
 import GoogleAuthProvider from "@/components/google-auth-provider";
 import SiteConfigProvider from "@/components/site-config-provider";
 import { fetchSiteConfig, extractScriptSrc } from "@/lib/site-config";
+import { Analytics } from "@vercel/analytics/next";
 
 const GA_ID = "G-5RNE9D5BN6";
 
@@ -99,6 +100,7 @@ export default async function RootLayout({
             </WishlistProvider>
           </AuthProvider>
         </GoogleAuthProvider>
+        <Analytics />
 
         {/* Google AdSense — injected from admin settings */}
         {siteConfig.adsenseCode ? (
