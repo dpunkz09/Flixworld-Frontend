@@ -49,10 +49,19 @@ export async function GET(request: NextRequest) {
         "Accept-Encoding": "identity", // avoid gzip so we get plain text
         Referer: "https://www.opensubtitles.org/",
         Origin: "https://www.opensubtitles.org",
+        // OpenSubtitles requires Api-Key + Authorization for download endpoints
+        // when called from datacenter IPs (Vercel, AWS, etc.)
+        ...(process.env.OPENSUBTITLES_API_KEY
+          ? { "Api-Key": process.env.OPENSUBTITLES_API_KEY }
+          : {}),
+        ...(process.env.OPENSUBTITLES_TOKEN
+          ? { Authorization: `Bearer ${process.env.OPENSUBTITLES_TOKEN}` }
+          : {}),
       },
       // Follow redirects (default)
       redirect: "follow",
       cache: "no-store",
+      signal: AbortSignal.timeout(15000),
     });
 
     if (!upstream.ok) {

@@ -6,6 +6,41 @@ export interface SiteConfig {
   analyticsCode:       string;
 }
 
+/**
+ * If the stored value is a full <script>...</script> block, extract just the
+ * inner content so it can safely be used with dangerouslySetInnerHTML.
+ * If it's already plain JS (no wrapping tag), return as-is.
+ * Also handles <script src="..."> by returning an empty string — those are
+ * handled separately via the Script src= prop.
+ */
+function extractScriptContent(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+
+  // Match <script ...>content</script>
+  const match = trimmed.match(/^<script[^>]*>([\s\S]*?)<\/script>\s*$/i);
+  if (match) {
+    return match[1].trim();
+  }
+
+  // It's a self-closing or src-only tag — not injectable as innerHTML
+  if (/^<script\b/i.test(trimmed)) {
+    return '';
+  }
+
+  return trimmed;
+}
+
+/**
+ * Extract the src attribute from a <script src="..."> tag, if present.
+ */
+export function extractScriptSrc(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const match = trimmed.match(/<script[^>]+src=["']([^"']+)["']/i);
+  return match ? match[1] : null;
+}
+
 export const SITE_CONFIG_DEFAULT: SiteConfig = {
   downloadPageEnabled: true,
   adsenseCode:         '',
@@ -30,8 +65,8 @@ export async function fetchSiteConfig(): Promise<SiteConfig> {
     };
     return {
       downloadPageEnabled: data.download_page_enabled  !== false,
-      adsenseCode:         data['adsense.code']        ?? '',
-      analyticsCode:       data['analytics.code']      ?? '',
+      adsenseCode:         extractScriptContent(data['adsense.code']        ?? ''),
+      analyticsCode:       extractScriptContent(data['analytics.code']      ?? ''),
     };
   } catch {
     return SITE_CONFIG_DEFAULT;

@@ -44,7 +44,7 @@ export interface PlayerInnerProps {
 }
 
 const HLS_PROXY = "https://rough-dust-bd78.dpunkz09.workers.dev/?url=";
-const SUB_PROXY = "/api/subtitle-proxy?url=";
+const SUB_PROXY = "https://rough-dust-bd78.dpunkz09.workers.dev/?url=";
 const THUMB_PROXY = "/api/thumbnails-proxy?url=";
 
 function proxyHls(url: string) { return `${HLS_PROXY}${encodeURIComponent(url)}`; }

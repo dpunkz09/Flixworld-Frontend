@@ -8,7 +8,7 @@ import PwaRegister from "@/components/pwa-register";
 import Shell from "@/components/shell";
 import GoogleAuthProvider from "@/components/google-auth-provider";
 import SiteConfigProvider from "@/components/site-config-provider";
-import { fetchSiteConfig } from "@/lib/site-config";
+import { fetchSiteConfig, extractScriptSrc } from "@/lib/site-config";
 
 const GA_ID = "G-5RNE9D5BN6";
 
@@ -101,13 +101,19 @@ export default async function RootLayout({
         </GoogleAuthProvider>
 
         {/* Google AdSense — injected from admin settings */}
-        {siteConfig.adsenseCode && (
+        {siteConfig.adsenseCode ? (
           <Script
             id="adsense-script"
             strategy="afterInteractive"
             dangerouslySetInnerHTML={{ __html: siteConfig.adsenseCode }}
           />
-        )}
+        ) : extractScriptSrc(siteConfig.adsenseCode) ? (
+          <Script
+            id="adsense-script"
+            src={extractScriptSrc(siteConfig.adsenseCode)!}
+            strategy="afterInteractive"
+          />
+        ) : null}
 
         {/* Analytics — injected from admin settings (overrides hardcoded GA if set) */}
         {siteConfig.analyticsCode ? (
