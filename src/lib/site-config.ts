@@ -2,33 +2,43 @@ import { API_BASE, apiFetch } from "@/lib/api";
 
 export interface SiteConfig {
   downloadPageEnabled: boolean;
-  adsenseCode:         string;
-  analyticsCode:       string;
+  /** Inline JS content (no <script> tags) — use with dangerouslySetInnerHTML */
+  adsenseCode:         string | null;
+  /** External script src URL — use with <Script src=...> */
+  adsenseSrc:          string | null;
+  /** Inline JS content (no <script> tags) — use with dangerouslySetInnerHTML */
+  analyticsCode:       string | null;
+  /** External script src URL — use with <Script src=...> */
+  analyticsSrc:        string | null;
 }
 
 /**
  * If the stored value is a full <script>...</script> block, extract just the
  * inner content so it can safely be used with dangerouslySetInnerHTML.
  * If it's already plain JS (no wrapping tag), return as-is.
- * Also handles <script src="..."> by returning an empty string — those are
- * handled separately via the Script src= prop.
+ * Returns null when the value is a <script src=""> tag (handled separately).
  */
-function extractScriptContent(raw: string): string {
+function extractScriptContent(raw: string): string | null {
   const trimmed = raw.trim();
-  if (!trimmed) return '';
+  if (!trimmed) return null;
+
+  // Self-closing or src-only tag — not injectable as innerHTML
+  if (/^<script\b[^>]+src=/i.test(trimmed)) {
+    return null;
+  }
 
   // Match <script ...>content</script>
   const match = trimmed.match(/^<script[^>]*>([\s\S]*?)<\/script>\s*$/i);
   if (match) {
-    return match[1].trim();
+    return match[1].trim() || null;
   }
 
-  // It's a self-closing or src-only tag — not injectable as innerHTML
-  if (/^<script\b/i.test(trimmed)) {
-    return '';
+  // Plain JS with no wrapping tag
+  if (!/^<script\b/i.test(trimmed)) {
+    return trimmed;
   }
 
-  return trimmed;
+  return null;
 }
 
 /**
@@ -43,8 +53,10 @@ export function extractScriptSrc(raw: string): string | null {
 
 export const SITE_CONFIG_DEFAULT: SiteConfig = {
   downloadPageEnabled: true,
-  adsenseCode:         '',
-  analyticsCode:       '',
+  adsenseCode:         null,
+  adsenseSrc:          null,
+  analyticsCode:       null,
+  analyticsSrc:        null,
 };
 
 /**
@@ -63,10 +75,14 @@ export async function fetchSiteConfig(): Promise<SiteConfig> {
       'adsense.code':        string;
       'analytics.code':      string;
     };
+    const rawAdsense  = data['adsense.code']   ?? '';
+    const rawAnalytics = data['analytics.code'] ?? '';
     return {
-      downloadPageEnabled: data.download_page_enabled  !== false,
-      adsenseCode:         extractScriptContent(data['adsense.code']        ?? ''),
-      analyticsCode:       extractScriptContent(data['analytics.code']      ?? ''),
+      downloadPageEnabled: data.download_page_enabled !== false,
+      adsenseCode:  extractScriptContent(rawAdsense),
+      adsenseSrc:   extractScriptSrc(rawAdsense),
+      analyticsCode: extractScriptContent(rawAnalytics),
+      analyticsSrc:  extractScriptSrc(rawAnalytics),
     };
   } catch {
     return SITE_CONFIG_DEFAULT;

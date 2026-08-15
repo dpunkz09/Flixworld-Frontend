@@ -8,7 +8,7 @@ import PwaRegister from "@/components/pwa-register";
 import Shell from "@/components/shell";
 import GoogleAuthProvider from "@/components/google-auth-provider";
 import SiteConfigProvider from "@/components/site-config-provider";
-import { fetchSiteConfig, extractScriptSrc } from "@/lib/site-config";
+import { fetchSiteConfig } from "@/lib/site-config";
 import { Analytics } from "@vercel/analytics/next";
 
 const GA_ID = "G-5RNE9D5BN6";
@@ -87,6 +87,22 @@ export default async function RootLayout({
 
   return (
     <html lang="en" className={`${geistSans.variable} dark`}>
+      <head>
+        {/* Google AdSense — must be a plain <script> in <head> with no extra
+            attributes. Next.js <Script> adds data-nscript which AdSense rejects. */}
+        {siteConfig.adsenseSrc ? (
+          // eslint-disable-next-line @next/next/no-sync-scripts
+          <script
+            async
+            src={siteConfig.adsenseSrc}
+            crossOrigin="anonymous"
+          />
+        ) : siteConfig.adsenseCode ? (
+          <script
+            dangerouslySetInnerHTML={{ __html: siteConfig.adsenseCode }}
+          />
+        ) : null}
+      </head>
       <body className="min-h-screen bg-black text-white antialiased">
         <PwaRegister />
         <GoogleAuthProvider>
@@ -102,23 +118,14 @@ export default async function RootLayout({
         </GoogleAuthProvider>
         <Analytics />
 
-        {/* Google AdSense — injected from admin settings */}
-        {siteConfig.adsenseCode ? (
-          <Script
-            id="adsense-script"
-            strategy="afterInteractive"
-            dangerouslySetInnerHTML={{ __html: siteConfig.adsenseCode }}
-          />
-        ) : extractScriptSrc(siteConfig.adsenseCode) ? (
-          <Script
-            id="adsense-script"
-            src={extractScriptSrc(siteConfig.adsenseCode)!}
-            strategy="afterInteractive"
-          />
-        ) : null}
-
         {/* Analytics — injected from admin settings (overrides hardcoded GA if set) */}
-        {siteConfig.analyticsCode ? (
+        {siteConfig.analyticsSrc ? (
+          <Script
+            id="analytics-script"
+            src={siteConfig.analyticsSrc}
+            strategy="afterInteractive"
+          />
+        ) : siteConfig.analyticsCode ? (
           <Script
             id="analytics-script"
             strategy="afterInteractive"
