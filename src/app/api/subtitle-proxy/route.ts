@@ -6,19 +6,10 @@ const CORS = {
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
-/** Convert SubRip (.srt) to WebVTT */
-function srtToVtt(srt: string): string {
-  const body = srt
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, "$1.$2")
-    .trim();
-  return `WEBVTT\n\n${body}`;
-}
-
-function isVtt(text: string): boolean {
-  return text.trimStart().startsWith("WEBVTT");
-}
+// Route subtitle fetches through the Cloudflare Worker which can reach
+// OpenSubtitles without being blocked (Vercel datacenter IPs get 403).
+// The worker also handles SRT→VTT conversion, so we just forward as-is.
+const CF_WORKER = "https://proxy.jpaworx.com";
 
 export async function GET(request: NextRequest) {
   const target = request.nextUrl.searchParams.get("url");
@@ -27,10 +18,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing url param" }, { status: 400 });
   }
 
-  let parsedUrl: URL;
   try {
-    parsedUrl = new URL(target);
-    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+    const parsed = new URL(target);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
       throw new Error("Bad protocol");
     }
   } catch {
@@ -38,28 +28,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const upstream = await fetch(target, {
-      headers: {
-        // Headers expected by OpenSubtitles download endpoints
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-          "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "identity", // avoid gzip so we get plain text
-        Referer: "https://www.opensubtitles.org/",
-        Origin: "https://www.opensubtitles.org",
-        // OpenSubtitles requires Api-Key + Authorization for download endpoints
-        // when called from datacenter IPs (Vercel, AWS, etc.)
-        ...(process.env.OPENSUBTITLES_API_KEY
-          ? { "Api-Key": process.env.OPENSUBTITLES_API_KEY }
-          : {}),
-        ...(process.env.OPENSUBTITLES_TOKEN
-          ? { Authorization: `Bearer ${process.env.OPENSUBTITLES_TOKEN}` }
-          : {}),
-      },
-      // Follow redirects (default)
-      redirect: "follow",
+    // Forward to Cloudflare Worker — it handles OpenSubtitles headers,
+    // SRT→VTT conversion, and returns text/vtt already.
+    const workerUrl = `${CF_WORKER}/?url=${encodeURIComponent(target)}`;
+    const upstream = await fetch(workerUrl, {
       cache: "no-store",
       signal: AbortSignal.timeout(15000),
     });
@@ -73,10 +45,7 @@ export async function GET(request: NextRequest) {
 
     const text = await upstream.text();
 
-    // Normalise to VTT regardless of whether the upstream gave SRT or VTT
-    const vtt = isVtt(text) ? text : srtToVtt(text);
-
-    return new NextResponse(vtt, {
+    return new NextResponse(text, {
       headers: {
         "Content-Type": "text/vtt; charset=utf-8",
         "Cache-Control": `public, max-age=${CACHE_SUBTITLE_MAX_AGE}, immutable`,
