@@ -7,7 +7,6 @@ export default function Footer() {
     { label: "Contact", href: "/contact" },
     { label: "Privacy Policy", href: "/privacy" },
     { label: "Terms of Service", href: "/terms" },
-    { label: "Help Center", href: "/help" },
   ];
 
   return (
