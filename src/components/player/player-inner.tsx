@@ -44,11 +44,9 @@ export interface PlayerInnerProps {
 }
 
 const HLS_PROXY = "https://proxy.jpaworx.com/?url=";
-const SUB_PROXY = "/api/subtitle-proxy?url=";
 const THUMB_PROXY = "/api/thumbnails-proxy?url=";
 
 function proxyHls(url: string) { return `${HLS_PROXY}${encodeURIComponent(url)}`; }
-function proxySub(url: string) { return `${SUB_PROXY}${encodeURIComponent(url)}`; }
 function proxyThumbnails(url: string) { return `${THUMB_PROXY}${encodeURIComponent(url)}`; }
 
 // ─── TrackingLayer ────────────────────────────────────────────────────────────
@@ -276,7 +274,7 @@ export default function PlayerInner({
           <Track
             key={`sub-${s.id}`}
             kind="subtitles"
-            src={proxySub(s.direct_download_url!)}
+            src={s.direct_download_url!}
             label={s.label}
             lang={s.language}
             default={s.language === "en" && s.label === "EN"}
