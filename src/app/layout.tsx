@@ -9,8 +9,6 @@ import Shell from "@/components/shell";
 import GoogleAuthProvider from "@/components/google-auth-provider";
 import SiteConfigProvider from "@/components/site-config-provider";
 import { fetchSiteConfig } from "@/lib/site-config";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const GA_ID = "G-5RNE9D5BN6";
 const ADSENSE_CLIENT = "ca-pub-3883277674447109";
@@ -129,8 +127,6 @@ export default async function RootLayout({
             </WishlistProvider>
           </AuthProvider>
         </GoogleAuthProvider>
-        <Analytics />
-        <SpeedInsights/>
 
         {/* Analytics — injected from admin settings (overrides hardcoded GA if set) */}
         {siteConfig.analyticsSrc ? (
