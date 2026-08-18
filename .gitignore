@@ -44,3 +44,5 @@ next-env.d.ts
 AGENTS.md
 API_DOCUMENTATION.md
 CLAUDE.md
+
+ecosystem.config.cjs

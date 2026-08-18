@@ -8,10 +8,11 @@ import PwaRegister from "@/components/pwa-register";
 import Shell from "@/components/shell";
 import GoogleAuthProvider from "@/components/google-auth-provider";
 import SiteConfigProvider from "@/components/site-config-provider";
+import { GoogleAdsense } from "@/components/google-adsense";
 import { fetchSiteConfig } from "@/lib/site-config";
 
 const GA_ID = "G-5RNE9D5BN6";
-const ADSENSE_CLIENT = "ca-pub-3883277674447109";
+const ADSENSE_PID = "ca-pub-3883277674447109";
 
 const geistSans = Geist({
   variable: "--font-sans",
@@ -87,33 +88,6 @@ export default async function RootLayout({
 
   return (
     <html lang="en" className={`${geistSans.variable} dark`}>
-      <head>
-        {/*
-          Google AdSense loader — must be a plain <script> in <head>.
-          Next.js <Script> wraps it with data-nscript which AdSense rejects.
-          Admin can override the publisher src via the adsense.code setting;
-          falls back to the hardcoded publisher ID below.
-        */}
-        {siteConfig.adsenseSrc ? (
-          // eslint-disable-next-line @next/next/no-sync-scripts
-          <script
-            async
-            src={siteConfig.adsenseSrc}
-            crossOrigin="anonymous"
-          />
-        ) : siteConfig.adsenseCode ? (
-          <script
-            dangerouslySetInnerHTML={{ __html: siteConfig.adsenseCode }}
-          />
-        ) : (
-          // eslint-disable-next-line @next/next/no-sync-scripts
-          <script
-            async
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
-            crossOrigin="anonymous"
-          />
-        )}
-      </head>
       <body className="min-h-screen bg-black text-white antialiased">
         <PwaRegister />
         <GoogleAuthProvider>
@@ -128,30 +102,17 @@ export default async function RootLayout({
           </AuthProvider>
         </GoogleAuthProvider>
 
-        {/* Analytics — injected from admin settings (overrides hardcoded GA if set) */}
-        {siteConfig.analyticsSrc ? (
-          <Script
-            id="analytics-script"
-            src={siteConfig.analyticsSrc}
-            strategy="afterInteractive"
-          />
-        ) : siteConfig.analyticsCode ? (
-          <Script
-            id="analytics-script"
-            strategy="afterInteractive"
-            dangerouslySetInnerHTML={{ __html: siteConfig.analyticsCode }}
-          />
-        ) : (
-          <>
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-              strategy="afterInteractive"
-            />
-            <Script id="gtag-init" strategy="afterInteractive">
-              {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_ID}');`}
-            </Script>
-          </>
-        )}
+        {/* Google Analytics */}
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="gtag-init" strategy="afterInteractive">
+          {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_ID}');`}
+        </Script>
+
+        {/* Google AdSense — production only, no-op in dev to prevent no_div errors */}
+        <GoogleAdsense pId={ADSENSE_PID} />
       </body>
     </html>
   );
