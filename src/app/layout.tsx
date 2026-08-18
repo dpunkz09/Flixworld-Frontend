@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import AuthProvider from "@/components/auth-provider";
 import WishlistProvider from "@/components/wishlist-provider";
@@ -9,6 +8,7 @@ import Shell from "@/components/shell";
 import GoogleAuthProvider from "@/components/google-auth-provider";
 import SiteConfigProvider from "@/components/site-config-provider";
 import { GoogleAdsense } from "@/components/google-adsense";
+import { GoogleAnalytics } from "@/components/google-analytics";
 import { fetchSiteConfig } from "@/lib/site-config";
 
 const GA_ID = "G-5RNE9D5BN6";
@@ -102,14 +102,8 @@ export default async function RootLayout({
           </AuthProvider>
         </GoogleAuthProvider>
 
-        {/* Google Analytics */}
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-          strategy="afterInteractive"
-        />
-        <Script id="gtag-init" strategy="afterInteractive">
-          {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_ID}');`}
-        </Script>
+        {/* Google Analytics — production only, no-op in dev */}
+        <GoogleAnalytics gId={GA_ID} />
 
         {/* Google AdSense — production only, no-op in dev to prevent no_div errors */}
         <GoogleAdsense pId={ADSENSE_PID} />
