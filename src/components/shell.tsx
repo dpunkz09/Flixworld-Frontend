@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import BottomNav from "@/components/bottom-nav";
+import ChatButton from "@/components/chat/chat-button";
 
 /**
  * Renders the main site chrome (Navbar, Footer, BottomNav) only when
@@ -23,6 +24,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <main className="pb-16 md:pb-0">{children}</main>
       <Footer />
       <BottomNav />
+      {/* Floating live chat — available on all public pages */}
+      <ChatButton />
     </>
   );
 }

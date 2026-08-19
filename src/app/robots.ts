@@ -4,7 +4,22 @@ export default function robots(): MetadataRoute.Robots {
   const base = "https://flixworld.xyz";
   return {
     rules: [
-      // Block aggressive crawlers that are generating huge log volume
+      // Allow social sharing crawlers explicitly - these must be able to
+      // read og: tags for link previews on Facebook, Twitter, WhatsApp, LinkedIn, etc.
+      {
+        userAgent: [
+          "facebookexternalhit",
+          "Facebot",
+          "Twitterbot",
+          "WhatsApp",
+          "LinkedInBot",
+          "Slackbot",
+          "TelegramBot",
+          "Discordbot",
+        ],
+        allow: ["/"],
+      },
+      // Block aggressive SEO crawlers and AI scrapers that generate log noise
       {
         userAgent: [
           "SemrushBot",
@@ -14,7 +29,6 @@ export default function robots(): MetadataRoute.Robots {
           "Bytespider",
           "PetalBot",
           "YandexBot",
-          "BingBot",
           "Amazonbot",
           "Amzn-SearchBot",
           "Claude-SearchBot",
@@ -23,10 +37,26 @@ export default function robots(): MetadataRoute.Robots {
           "anthropic-ai",
           "cohere-ai",
           "PerplexityBot",
+          "Outbrain",
+          "Exabot",
+          "SISTRIX Crawler",
+          "Ezooms",
+          "Diffbot",
+          "CensysInspect",
+          "OgScrper",
+          "SeznamBot",
+          "Neevabot",
+          "ZoominfoBot",
+          "Pandalytics",
+          "SiteAuditBot",
+          "MetaInspector",
+          "AdsBot-Google",
+          "Google-Extended",
+          "Feedfetcher-Google",
         ],
         disallow: ["/"],
       },
-      // Default rules for well-behaved crawlers (Google, etc.)
+      // Default rules for well-behaved crawlers (Googlebot, etc.)
       {
         userAgent: "*",
         allow: [
