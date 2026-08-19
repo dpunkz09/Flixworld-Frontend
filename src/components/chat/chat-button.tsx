@@ -8,7 +8,8 @@ import ChatModal from "./chat-modal";
 
 const GUEST_NAME_KEY = "fw_chat_guest_name";
 
-function getOrCreateGuestName(): string {
+/** Called at most once per component lifetime via useRef initialiser. */
+function initGuestName(): string {
   try {
     const stored = sessionStorage.getItem(GUEST_NAME_KEY);
     if (stored) return stored;
@@ -22,20 +23,23 @@ function getOrCreateGuestName(): string {
 
 /**
  * Floating chat button — bottom-right corner on every public page.
- * Shows unread badge when new messages arrive while the modal is closed.
- * Plays a soft bonk sound on each new message (via Web Audio API).
+ * • Unread badge when messages arrive while modal is closed.
+ * • Soft bonk sound on each new message (Web Audio API).
+ * • Modal stays mounted (CSS visibility) to preserve scroll position.
  */
 export default function ChatButton() {
   const [open, setOpen] = useState(false);
   const { user, token } = useAuth();
 
-  const guestNameRef = useRef<string>("");
-  if (!guestNameRef.current) {
-    guestNameRef.current = getOrCreateGuestName();
+  // Initialised exactly once — useRef(() => fn()) lazy init pattern
+  const guestNameRef = useRef<string | null>(null);
+  if (guestNameRef.current === null) {
+    guestNameRef.current = initGuestName();
   }
+  const guestName = guestNameRef.current;
 
   const { messages, onlineCount, connected, unreadCount, sendMessage } = useChat(
-    guestNameRef.current,
+    guestName,
     token,
     open,
   );
@@ -51,13 +55,9 @@ export default function ChatButton() {
                    text-white shadow-lg shadow-red-900/40 flex items-center justify-center
                    transition-all duration-200"
       >
-        {open ? (
-          <X className="w-5 h-5" />
-        ) : (
-          <MessageCircle className="w-5 h-5" />
-        )}
+        {open ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
 
-        {/* Unread badge — only visible when modal is closed and there are unread messages */}
+        {/* Unread badge */}
         {!open && unreadCount > 0 && (
           <span
             className="absolute -top-1 -right-1 min-w-[18px] h-[18px]
@@ -70,7 +70,7 @@ export default function ChatButton() {
         )}
       </button>
 
-      {/* Chat modal — receives the already-connected chat state */}
+      {/* Modal stays in DOM — toggled via opacity/scale in chat-modal.tsx */}
       <ChatModal
         open={open}
         onClose={() => setOpen(false)}
@@ -79,7 +79,7 @@ export default function ChatButton() {
         onlineCount={onlineCount}
         connected={connected}
         sendMessage={sendMessage}
-        guestName={guestNameRef.current}
+        guestName={guestName}
       />
     </>
   );

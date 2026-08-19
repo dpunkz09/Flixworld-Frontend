@@ -16,6 +16,8 @@ const SOCKET_URL =
   (process.env.NEXT_PUBLIC_API_BASE ?? "https://api-backend.jpaworx.com/api")
     .replace(/\/api$/, "");
 
+const MAX_MESSAGES = 100;
+
 // ---------------------------------------------------------------------------
 // Soft bonk — generated via Web Audio API, no audio file needed
 // ---------------------------------------------------------------------------
@@ -23,9 +25,11 @@ const SOCKET_URL =
 function playBonk() {
   try {
     const AudioCtx =
-      window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext })
+        .webkitAudioContext;
+    const ctx  = new AudioCtx();
+    const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.connect(gain);
@@ -34,7 +38,6 @@ function playBonk() {
     osc.type = "sine";
     osc.frequency.setValueAtTime(520, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(260, ctx.currentTime + 0.12);
-
     gain.gain.setValueAtTime(0.18, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
 
@@ -42,7 +45,7 @@ function playBonk() {
     osc.stop(ctx.currentTime + 0.18);
     osc.onended = () => ctx.close();
   } catch {
-    // AudioContext not available (SSR / unsupported browser) — silently skip
+    // AudioContext not available — silently skip
   }
 }
 
@@ -50,13 +53,6 @@ function playBonk() {
 // Hook
 // ---------------------------------------------------------------------------
 
-/**
- * Manages the Socket.io connection to /chat namespace.
- *
- * @param guestName  - display name for anonymous users
- * @param token      - JWT for authenticated users (null for guests)
- * @param open       - modal open state — when false, messages are counted as unread
- */
 export function useChat(
   guestName: string,
   token: string | null,
@@ -67,24 +63,34 @@ export function useChat(
   const [connected, setConnected]     = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const socketRef  = useRef<Socket | null>(null);
-  const openRef    = useRef(open);
+  const socketRef = useRef<Socket | null>(null);
+  const openRef   = useRef(open);
+  // O(1) dedup set — avoids .some() O(n) scan on every incoming message
+  const seenIds   = useRef(new Set<string>());
 
-  // Keep ref in sync so the socket event handler always reads the latest value
+  // Keep openRef in sync without triggering re-renders
   useEffect(() => { openRef.current = open; }, [open]);
 
-  // Reset unread when the modal is opened
+  // Reset unread when modal opens
   useEffect(() => { if (open) setUnreadCount(0); }, [open]);
 
+  // Stable connect — recreates socket with fresh auth when token/guestName changes
   const connect = useCallback(() => {
-    if (socketRef.current?.connected) return;
+    // Clean up existing socket first
+    if (socketRef.current) {
+      socketRef.current.removeAllListeners();
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
 
     const socket = io(`${SOCKET_URL}/chat`, {
-      auth:  token ? { token }     : { guestName },
-      query: token ? { token }     : { guestName },
+      auth:  token ? { token } : { guestName },
+      query: token ? { token } : { guestName },
       transports: ["websocket", "polling"],
       reconnectionAttempts: 5,
       reconnectionDelay: 2000,
+      // Reuse the same connection across component lifecycle
+      forceNew: false,
     });
 
     socketRef.current = socket;
@@ -94,17 +100,29 @@ export function useChat(
     socket.on("connect_error", () => setConnected(false));
 
     socket.on("history", (history: ChatMessage[]) => {
+      // Seed the dedup set from history
+      seenIds.current = new Set(history.map((m) => m.id));
       setMessages(history);
     });
 
     socket.on("new_message", (msg: ChatMessage) => {
+      // O(1) dedup — no array scan
+      if (seenIds.current.has(msg.id)) return;
+      seenIds.current.add(msg.id);
+
+      // Keep set bounded — remove oldest ids when it grows large
+      if (seenIds.current.size > MAX_MESSAGES * 2) {
+        const arr = Array.from(seenIds.current);
+        seenIds.current = new Set(arr.slice(-MAX_MESSAGES));
+      }
+
       setMessages((prev) => {
-        if (prev.some((m) => m.id === msg.id)) return prev;
-        const next = [...prev, msg];
-        return next.length > 100 ? next.slice(-100) : next;
+        const next = prev.length >= MAX_MESSAGES
+          ? [...prev.slice(-(MAX_MESSAGES - 1)), msg]
+          : [...prev, msg];
+        return next;
       });
 
-      // Only count + play sound when the modal is closed
       if (!openRef.current) {
         setUnreadCount((c) => c + 1);
         playBonk();
@@ -116,22 +134,19 @@ export function useChat(
     });
   }, [guestName, token]);
 
-  const disconnect = useCallback(() => {
-    socketRef.current?.disconnect();
-    socketRef.current = null;
-    setConnected(false);
-  }, []);
-
-  // Always stay connected so unread messages accumulate even when modal is closed
+  // Mount: connect once; unmount: disconnect
   useEffect(() => {
     connect();
-    return () => { socketRef.current?.disconnect(); };
+    return () => {
+      socketRef.current?.removeAllListeners();
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Reconnect if token/guestName changes (login / logout)
+  // Reconnect when auth changes (login / logout)
   useEffect(() => {
-    disconnect();
     connect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, guestName]);

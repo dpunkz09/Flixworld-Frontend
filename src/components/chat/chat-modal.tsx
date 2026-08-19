@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, memo, useMemo } from "react";
 import { MessageCircle, Send, X, Wifi, WifiOff, Users } from "lucide-react";
 import type { User } from "@/types/auth";
 import type { ChatMessage } from "@/hooks/useChat";
@@ -9,49 +9,54 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { resolveStorageUrl } from "@/lib/api";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Pure helpers (memoisation-friendly, stable references) ───────────────────
 
 function timeLabel(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
+  const d      = new Date(iso);
+  const now    = new Date();
   const diffMs = now.getTime() - d.getTime();
-  if (diffMs < 60_000) return "just now";
-  if (diffMs < 3_600_000) return `${Math.floor(diffMs / 60_000)}m ago`;
+  if (diffMs < 60_000)      return "just now";
+  if (diffMs < 3_600_000)   return `${Math.floor(diffMs / 60_000)}m ago`;
   if (d.toDateString() === now.toDateString())
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   return d.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
 function initials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 }
 
+const AVATAR_COLORS = [
+  "bg-red-600", "bg-orange-600", "bg-amber-600", "bg-emerald-600",
+  "bg-cyan-600", "bg-blue-600",  "bg-violet-600", "bg-pink-600",
+];
 function avatarColor(name: string): string {
-  const colors = [
-    "bg-red-600", "bg-orange-600", "bg-amber-600", "bg-emerald-600",
-    "bg-cyan-600", "bg-blue-600", "bg-violet-600", "bg-pink-600",
-  ];
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
-  return colors[Math.abs(hash) % colors.length];
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-// ── Message bubble ────────────────────────────────────────────────────────────
+// ── MessageBubble — memoized so stable messages never re-render ──────────────
 
-function MessageBubble({ msg, isOwn }: { msg: ChatMessage; isOwn: boolean }) {
+const MessageBubble = memo(function MessageBubble({
+  msg,
+  isOwn,
+}: {
+  msg: ChatMessage;
+  isOwn: boolean;
+}) {
+  // Compute derived values once per render of this bubble (only when msg changes)
+  const avatarSrc  = useMemo(() => resolveStorageUrl(msg.avatar) ?? "", [msg.avatar]);
+  const initStr    = useMemo(() => initials(msg.name),  [msg.name]);
+  const colorClass = useMemo(() => avatarColor(msg.name), [msg.name]);
+  const time       = useMemo(() => timeLabel(msg.createdAt), [msg.createdAt]);
+
   return (
     <div className={`flex gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
       <Avatar className="w-7 h-7 flex-shrink-0 mt-0.5">
-        {msg.avatar && (
-          <AvatarImage src={resolveStorageUrl(msg.avatar) ?? ""} alt={msg.name} />
-        )}
-        <AvatarFallback className={`text-[10px] font-bold text-white ${avatarColor(msg.name)}`}>
-          {initials(msg.name)}
+        {msg.avatar && <AvatarImage src={avatarSrc} alt={msg.name} />}
+        <AvatarFallback className={`text-[10px] font-bold text-white ${colorClass}`}>
+          {initStr}
         </AvatarFallback>
       </Avatar>
 
@@ -68,11 +73,11 @@ function MessageBubble({ msg, isOwn }: { msg: ChatMessage; isOwn: boolean }) {
         >
           {msg.body}
         </div>
-        <span className="text-[9px] text-zinc-600 px-1">{timeLabel(msg.createdAt)}</span>
+        <span className="text-[9px] text-zinc-600 px-1">{time}</span>
       </div>
     </div>
   );
-}
+});
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -87,7 +92,7 @@ interface ChatModalProps {
   guestName: string;
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Main modal component ──────────────────────────────────────────────────────
 
 export default function ChatModal({
   open,
@@ -99,26 +104,66 @@ export default function ChatModal({
   sendMessage,
   guestName,
 }: ChatModalProps) {
-  const displayName = user?.name ?? guestName;
+  const displayName  = user?.name ?? guestName;
   const [input, setInput] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef  = useRef<HTMLInputElement>(null);
+  const scrollRef    = useRef<HTMLDivElement>(null);
+  const inputRef     = useRef<HTMLInputElement>(null);
+  const prevLenRef   = useRef(0);
+  // Track whether the user has scrolled up (don't auto-scroll if so)
+  const userScrolled = useRef(false);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll only when:
+  //  • the modal is open, AND
+  //  • a new message was appended (not history load or unrelated re-render), AND
+  //  • the user hasn't scrolled up manually
   useEffect(() => {
+    if (!open || !scrollRef.current) return;
+
+    const newLen = messages.length;
+    const added  = newLen > prevLenRef.current;
+    prevLenRef.current = newLen;
+
+    if (!added) return; // history load or re-render — don't jump
+
+    const el = scrollRef.current;
+    const atBottom = el.scrollHeight - el.clientHeight - el.scrollTop < 80;
+
+    if (!userScrolled.current || atBottom) {
+      el.scrollTop = el.scrollHeight;
+      userScrolled.current = false;
+    }
+  }, [messages, open]);
+
+  // Detect manual upward scroll
+  const handleScroll = useCallback(() => {
     if (!scrollRef.current) return;
-    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages]);
+    const el = scrollRef.current;
+    const atBottom = el.scrollHeight - el.clientHeight - el.scrollTop < 80;
+    userScrolled.current = !atBottom;
+  }, []);
 
-  // Focus input when opened
+  // Scroll to bottom and focus input when modal opens
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 100);
+    if (!open) return;
+    // Scroll to bottom on open
+    requestAnimationFrame(() => {
+      if (scrollRef.current)
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      inputRef.current?.focus();
+    });
+    userScrolled.current = false;
   }, [open]);
 
   const handleSend = useCallback(() => {
     if (!input.trim()) return;
     sendMessage(input);
     setInput("");
+    // Force scroll to bottom on own send
+    userScrolled.current = false;
+    requestAnimationFrame(() => {
+      if (scrollRef.current)
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    });
   }, [input, sendMessage]);
 
   const handleKey = useCallback(
@@ -131,14 +176,34 @@ export default function ChatModal({
     [handleSend],
   );
 
-  if (!open) return null;
+  // Pre-compute own userId/name once per render (not inside .map)
+  const ownUserId   = user?.id ?? null;
+  const ownGuestName = guestName;
 
+  // Stable identity badge values
+  const identityAvatarSrc = useMemo(
+    () => resolveStorageUrl(user?.profile_picture) ?? "",
+    [user?.profile_picture],
+  );
+  const identityColor    = useMemo(() => avatarColor(displayName), [displayName]);
+  const identityInitials = useMemo(() => initials(displayName),    [displayName]);
+
+  // Keep modal mounted but hidden — preserves scroll position and avoids
+  // remount cost (socket listeners, DOM rebuild) on every toggle
   return (
     <div
-      className="fixed bottom-36 md:bottom-22 right-4 md:right-6 w-[calc(100vw-2rem)] sm:w-[360px] max-w-sm
-                 bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl shadow-black/70
-                 flex flex-col overflow-hidden z-[60]
-                 animate-in slide-in-from-bottom-4 fade-in duration-200"
+      role="dialog"
+      aria-label="Live chat"
+      aria-hidden={!open}
+      className={`fixed bottom-36 md:bottom-22 right-4 md:right-6
+                  w-[calc(100vw-2rem)] sm:w-[360px] max-w-sm
+                  bg-zinc-950 border border-white/10 rounded-2xl
+                  shadow-2xl shadow-black/70 flex flex-col overflow-hidden z-[60]
+                  transition-all duration-200 origin-bottom-right
+                  ${open
+                    ? "opacity-100 scale-100 pointer-events-auto"
+                    : "opacity-0 scale-95 pointer-events-none"
+                  }`}
       style={{ height: "480px" }}
     >
       {/* ── Header ── */}
@@ -170,10 +235,10 @@ export default function ChatModal({
       <div className="px-4 py-2 bg-zinc-900/50 border-b border-white/5 flex items-center gap-2 flex-shrink-0">
         <Avatar className="w-5 h-5">
           {user?.profile_picture && (
-            <AvatarImage src={resolveStorageUrl(user.profile_picture) ?? ""} alt={displayName} />
+            <AvatarImage src={identityAvatarSrc} alt={displayName} />
           )}
-          <AvatarFallback className={`text-[8px] font-bold text-white ${avatarColor(displayName)}`}>
-            {initials(displayName)}
+          <AvatarFallback className={`text-[8px] font-bold text-white ${identityColor}`}>
+            {identityInitials}
           </AvatarFallback>
         </Avatar>
         <span className="text-xs text-zinc-400">
@@ -186,6 +251,7 @@ export default function ChatModal({
       {/* ── Messages ── */}
       <div
         ref={scrollRef}
+        onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0"
         style={{ scrollbarWidth: "thin", scrollbarColor: "#3f3f46 transparent" }}
       >
@@ -199,7 +265,7 @@ export default function ChatModal({
             <MessageBubble
               key={msg.id}
               msg={msg}
-              isOwn={user ? msg.userId === user.id : msg.name === guestName}
+              isOwn={ownUserId !== null ? msg.userId === ownUserId : msg.name === ownGuestName}
             />
           ))
         )}

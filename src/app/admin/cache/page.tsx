@@ -3,26 +3,28 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   Trash2, RefreshCw, CheckCircle, AlertCircle, Database,
-  HardDrive, BarChart2, Layers,
+  HardDrive, BarChart2, Layers, MessageCircle,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  getAdminCacheStatus, getAdminCacheStats, clearAdminCache, refreshTmdbData,
+  getAdminCacheStatus, getAdminCacheStats, clearAdminCache,
+  clearAdminChatHistory, refreshTmdbData,
   type CacheStats,
 } from "@/lib/admin-api";
 
 const CACHE_PATTERNS = [
-  { label: "All Cache",         pattern: "*",           desc: "Clear everything from Redis" },
-  { label: "Homepage",          pattern: "homepage:*",  desc: "Force homepage sections to refresh" },
-  { label: "All Movies",        pattern: "movies:*",    desc: "Clear all movie lists and details" },
-  { label: "All TV Shows",      pattern: "tv:*",        desc: "Clear all TV series lists and details" },
-  { label: "Search Results",    pattern: "search:*",    desc: "Clear cached search queries" },
-  { label: "People",            pattern: "person:*",    desc: "Clear person details and credits" },
-  { label: "Companies",         pattern: "company:*",   desc: "Clear production company data" },
-  { label: "Networks",          pattern: "network:*",   desc: "Clear TV network data" },
-  { label: "Keywords",          pattern: "keyword:*",   desc: "Clear keyword associations" },
-  { label: "Stream Cache",      pattern: "stream:*",    desc: "Clear stream URL cache" },
-  { label: "Subtitles (Wyzie)", pattern: "wyzie:*",     desc: "Clear subtitle cache" },
+  { label: "All Cache",            pattern: "*",              desc: "Clear everything from Redis" },
+  { label: "Homepage",             pattern: "homepage:*",     desc: "Force homepage sections to refresh" },
+  { label: "All Movies",           pattern: "movies:*",       desc: "Clear all movie lists and details" },
+  { label: "All TV Shows",         pattern: "tv:*",           desc: "Clear all TV series lists and details" },
+  { label: "Search Results",       pattern: "search:*",       desc: "Clear cached search queries" },
+  { label: "People",               pattern: "person:*",       desc: "Clear person details and credits" },
+  { label: "Companies",            pattern: "company:*",      desc: "Clear production company data" },
+  { label: "Networks",             pattern: "network:*",      desc: "Clear TV network data" },
+  { label: "Keywords",             pattern: "keyword:*",      desc: "Clear keyword associations" },
+  { label: "Stream Cache",         pattern: "stream:*",       desc: "Clear stream URL cache" },
+  { label: "Subtitles (Wyzie)",    pattern: "wyzie:*",        desc: "Clear subtitle search cache" },
+  { label: "Subtitle VTT Files",   pattern: "subtitle:vtt:*", desc: "Clear cached .vtt subtitle file content" },
 ];
 
 function formatBytes(bytes: number): string {
@@ -62,6 +64,7 @@ export default function AdminCachePage() {
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [clearingChat, setClearingChat] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [refreshType, setRefreshType] = useState("movie");
   const [refreshId, setRefreshId] = useState("");
@@ -107,6 +110,20 @@ export default function AdminCachePage() {
       showToast((e as Error).message, false);
     } finally {
       setClearing(false);
+    }
+  };
+
+  const handleClearChat = async () => {
+    if (!token) return;
+    setClearingChat(true);
+    try {
+      const r = await clearAdminChatHistory(token);
+      showToast(r.message);
+      await loadStats();
+    } catch (e) {
+      showToast((e as Error).message, false);
+    } finally {
+      setClearingChat(false);
     }
   };
 
@@ -255,11 +272,13 @@ export default function AdminCachePage() {
                           ? Math.min(100, Math.round((p.size_bytes / stats.used_memory_bytes) * 100))
                           : 0;
                       const meta = CACHE_PATTERNS.find((c) => c.pattern === p.pattern);
+                      const isChatKey = p.pattern === "chat:*";
                       return (
                         <div key={p.pattern} className="px-5 py-3 flex items-center gap-4">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-medium text-zinc-300 truncate">
+                              <span className="text-xs font-medium text-zinc-300 truncate flex items-center gap-1.5">
+                                {isChatKey && <MessageCircle className="w-3 h-3 text-zinc-500 flex-shrink-0" />}
                                 {meta?.label ?? p.pattern}
                               </span>
                               <span className="text-[10px] text-zinc-500 ml-2 flex-shrink-0 font-mono">
@@ -274,8 +293,8 @@ export default function AdminCachePage() {
                             </div>
                           </div>
                           <button
-                            onClick={() => void handleClear(p.pattern)}
-                            disabled={clearing}
+                            onClick={() => isChatKey ? void handleClearChat() : void handleClear(p.pattern)}
+                            disabled={isChatKey ? clearingChat : clearing}
                             title={`Clear ${p.pattern}`}
                             className="flex-shrink-0 p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40"
                           >
@@ -325,6 +344,46 @@ export default function AdminCachePage() {
               </div>
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Chat history */}
+      <div>
+        <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+          <MessageCircle className="w-4 h-4 text-zinc-400" />
+          Live Chat History
+        </h2>
+        <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-white">Clear chat history</p>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              Removes all chat messages from Redis and the in-memory buffer.
+              Active users will see an empty chat until new messages are sent.
+            </p>
+            <div className="flex items-center gap-3 mt-2">
+              {stats?.patterns.find((p) => p.pattern === "chat:*") && (
+                <span className="text-[11px] text-zinc-500 font-mono bg-zinc-800 px-2 py-0.5 rounded">
+                  {stats.patterns.find((p) => p.pattern === "chat:*")!.key_count} key
+                  {" · "}
+                  {formatBytes(stats.patterns.find((p) => p.pattern === "chat:*")!.size_bytes)}
+                </span>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={() => void handleClearChat()}
+            disabled={clearingChat}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600/80 hover:bg-red-600
+                       text-white text-sm font-medium rounded-lg transition-colors
+                       disabled:opacity-50 flex-shrink-0"
+          >
+            {clearingChat ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Trash2 className="w-4 h-4" />
+            )}
+            Clear Chat
+          </button>
         </div>
       </div>
 

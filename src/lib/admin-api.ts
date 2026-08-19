@@ -211,6 +211,9 @@ export const getAdminCacheStats = (token: string) =>
 export const clearAdminCache = (token: string, pattern = "*") =>
   adminFetch<{ message: string }>(token, `/cache?pattern=${encodeURIComponent(pattern)}`, { method: "DELETE" });
 
+export const clearAdminChatHistory = (token: string) =>
+  adminFetch<{ message: string }>(token, "/cache/chat/clear", { method: "POST" });
+
 export const refreshTmdbData = (token: string, type: string, tmdbId: number) =>
   adminFetch<{ message: string }>(token, `/cache/refresh/${type}/${tmdbId}`, { method: "POST" });
 
