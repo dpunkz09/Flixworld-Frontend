@@ -2,29 +2,12 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { MessageCircle, Send, X, Wifi, WifiOff, Users } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { useChat, type ChatMessage } from "@/hooks/useChat";
+import type { User } from "@/types/auth";
+import type { ChatMessage } from "@/hooks/useChat";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { resolveStorageUrl } from "@/lib/api";
-
-// ── Guest name persistence ────────────────────────────────────────────────────
-
-const GUEST_NAME_KEY = "fw_chat_guest_name";
-
-function getOrCreateGuestName(): string {
-  try {
-    const stored = sessionStorage.getItem(GUEST_NAME_KEY);
-    if (stored) return stored;
-    const name = `Guest#${Math.floor(1000 + Math.random() * 9000)}`;
-    sessionStorage.setItem(GUEST_NAME_KEY, name);
-    return name;
-  } catch {
-    return `Guest#${Math.floor(1000 + Math.random() * 9000)}`;
-  }
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -60,24 +43,18 @@ function avatarColor(name: string): string {
 
 // ── Message bubble ────────────────────────────────────────────────────────────
 
-function MessageBubble({
-  msg,
-  isOwn,
-}: {
-  msg: ChatMessage;
-  isOwn: boolean;
-}) {
+function MessageBubble({ msg, isOwn }: { msg: ChatMessage; isOwn: boolean }) {
   return (
     <div className={`flex gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
-      {/* Avatar */}
       <Avatar className="w-7 h-7 flex-shrink-0 mt-0.5">
-        {msg.avatar && <AvatarImage src={resolveStorageUrl(msg.avatar) ?? ""} alt={msg.name} />}
+        {msg.avatar && (
+          <AvatarImage src={resolveStorageUrl(msg.avatar) ?? ""} alt={msg.name} />
+        )}
         <AvatarFallback className={`text-[10px] font-bold text-white ${avatarColor(msg.name)}`}>
           {initials(msg.name)}
         </AvatarFallback>
       </Avatar>
 
-      {/* Bubble */}
       <div className={`max-w-[75%] flex flex-col gap-0.5 ${isOwn ? "items-end" : "items-start"}`}>
         <span className="text-[10px] text-zinc-500 px-1">
           {isOwn ? "You" : msg.name}
@@ -97,32 +74,35 @@ function MessageBubble({
   );
 }
 
-// ── Main component ─────────────────────────────────────────────────────────────
+// ── Props ─────────────────────────────────────────────────────────────────────
 
 interface ChatModalProps {
   open: boolean;
   onClose: () => void;
+  user: User | null;
+  messages: ChatMessage[];
+  onlineCount: number;
+  connected: boolean;
+  sendMessage: (body: string) => void;
+  guestName: string;
 }
 
-export default function ChatModal({ open, onClose }: ChatModalProps) {
-  const { user, token } = useAuth();
+// ── Main component ────────────────────────────────────────────────────────────
 
-  // Guest name — stable across re-renders, only created once
-  const guestNameRef = useRef<string>("");
-  if (!guestNameRef.current) {
-    guestNameRef.current = getOrCreateGuestName();
-  }
-  const displayName = user?.name ?? guestNameRef.current;
-
-  const { messages, onlineCount, connected, sendMessage } = useChat(
-    guestNameRef.current,
-    token,
-    open,
-  );
-
+export default function ChatModal({
+  open,
+  onClose,
+  user,
+  messages,
+  onlineCount,
+  connected,
+  sendMessage,
+  guestName,
+}: ChatModalProps) {
+  const displayName = user?.name ?? guestName;
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef  = useRef<HTMLInputElement>(null);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -132,9 +112,7 @@ export default function ChatModal({ open, onClose }: ChatModalProps) {
 
   // Focus input when opened
   useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
+    if (open) setTimeout(() => inputRef.current?.focus(), 100);
   }, [open]);
 
   const handleSend = useCallback(() => {
@@ -157,7 +135,7 @@ export default function ChatModal({ open, onClose }: ChatModalProps) {
 
   return (
     <div
-      className="fixed bottom-20 md:bottom-6 right-4 md:right-6 w-[calc(100vw-2rem)] sm:w-[360px] max-w-sm
+      className="fixed bottom-36 md:bottom-22 right-4 md:right-6 w-[calc(100vw-2rem)] sm:w-[360px] max-w-sm
                  bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl shadow-black/70
                  flex flex-col overflow-hidden z-[60]
                  animate-in slide-in-from-bottom-4 fade-in duration-200"
@@ -168,19 +146,16 @@ export default function ChatModal({ open, onClose }: ChatModalProps) {
         <div className="flex items-center gap-2">
           <MessageCircle className="w-4 h-4 text-red-500" />
           <span className="text-sm font-semibold text-white">Live Chat</span>
-          {/* Online count */}
           <span className="flex items-center gap-1 text-[11px] text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-full">
             <Users className="w-3 h-3" />
             {onlineCount}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {/* Connection indicator */}
-          {connected ? (
-            <Wifi className="w-3.5 h-3.5 text-emerald-500" />
-          ) : (
-            <WifiOff className="w-3.5 h-3.5 text-zinc-600 animate-pulse" />
-          )}
+          {connected
+            ? <Wifi className="w-3.5 h-3.5 text-emerald-500" />
+            : <WifiOff className="w-3.5 h-3.5 text-zinc-600 animate-pulse" />
+          }
           <button
             onClick={onClose}
             aria-label="Close chat"
@@ -204,9 +179,7 @@ export default function ChatModal({ open, onClose }: ChatModalProps) {
         <span className="text-xs text-zinc-400">
           Chatting as{" "}
           <span className="text-white font-medium">{displayName}</span>
-          {!user && (
-            <span className="text-zinc-600 ml-1">(guest)</span>
-          )}
+          {!user && <span className="text-zinc-600 ml-1">(guest)</span>}
         </span>
       </div>
 
@@ -226,11 +199,7 @@ export default function ChatModal({ open, onClose }: ChatModalProps) {
             <MessageBubble
               key={msg.id}
               msg={msg}
-              isOwn={
-                user
-                  ? msg.userId === user.id
-                  : msg.name === guestNameRef.current
-              }
+              isOwn={user ? msg.userId === user.id : msg.name === guestName}
             />
           ))
         )}
@@ -255,9 +224,9 @@ export default function ChatModal({ open, onClose }: ChatModalProps) {
           size="icon"
           onClick={handleSend}
           disabled={!input.trim() || !connected}
+          aria-label="Send message"
           className="w-9 h-9 bg-red-600 hover:bg-red-700 text-white rounded-xl flex-shrink-0
                      disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          aria-label="Send message"
         >
           <Send className="w-4 h-4" />
         </Button>
