@@ -193,7 +193,7 @@ export default function ChatModal({
   return (
     <div
       role="dialog"
-      aria-label="Live chat"
+      aria-label="Lobby"
       aria-hidden={!open}
       className={`fixed bottom-36 md:bottom-22 right-4 md:right-6
                   w-[calc(100vw-2rem)] sm:w-[360px] max-w-sm
@@ -210,7 +210,7 @@ export default function ChatModal({
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-zinc-900 flex-shrink-0">
         <div className="flex items-center gap-2">
           <MessageCircle className="w-4 h-4 text-red-500" />
-          <span className="text-sm font-semibold text-white">Live Chat</span>
+          <span className="text-sm font-semibold text-white">Lobby</span>
           <span className="flex items-center gap-1 text-[11px] text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-full">
             <Users className="w-3 h-3" />
             {onlineCount}

@@ -29,7 +29,7 @@ function initGuestName(): string {
  */
 export default function ChatButton() {
   const [open, setOpen] = useState(false);
-  const { user, token } = useAuth();
+  const { user, token, loading } = useAuth();
 
   // Initialised exactly once — useRef(() => fn()) lazy init pattern
   const guestNameRef = useRef<string | null>(null);
@@ -42,6 +42,7 @@ export default function ChatButton() {
     guestName,
     token,
     open,
+    loading,            // wait for auth before connecting so real name is used
   );
 
   return (
@@ -49,7 +50,7 @@ export default function ChatButton() {
       {/* Floating toggle button */}
       <button
         onClick={() => setOpen((v) => !v)}
-        aria-label={open ? "Close chat" : "Open live chat"}
+        aria-label={open ? "Close lobby" : "Open lobby"}
         className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-[59]
                    w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 active:scale-95
                    text-white shadow-lg shadow-red-900/40 flex items-center justify-center

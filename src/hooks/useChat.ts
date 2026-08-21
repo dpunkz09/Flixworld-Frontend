@@ -57,6 +57,7 @@ export function useChat(
   guestName: string,
   token: string | null,
   open: boolean,
+  authLoading: boolean,          // wait for auth before connecting
 ) {
   const [messages, setMessages]       = useState<ChatMessage[]>([]);
   const [onlineCount, setOnlineCount] = useState(0);
@@ -134,8 +135,9 @@ export function useChat(
     });
   }, [guestName, token]);
 
-  // Mount: connect once; unmount: disconnect
+  // Mount: connect once auth is resolved; unmount: disconnect
   useEffect(() => {
+    if (authLoading) return;      // wait — don't connect as guest if user is logging in
     connect();
     return () => {
       socketRef.current?.removeAllListeners();
@@ -143,7 +145,7 @@ export function useChat(
       socketRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authLoading]);              // re-runs once when authLoading flips to false
 
   // Reconnect when auth changes (login / logout)
   useEffect(() => {
