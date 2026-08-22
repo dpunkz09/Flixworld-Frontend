@@ -1,8 +1,6 @@
 export interface Subtitle {
-  id: string;
-  language: string;
-  format?: string;
-  direct_download_url: string | null;
+  label: string;
+  file: string;
 }
 
 export interface StreamData {

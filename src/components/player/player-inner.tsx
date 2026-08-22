@@ -235,21 +235,13 @@ export default function PlayerInner({
   const allSubs = [
     ...(streamData.default_subs ?? []),
     ...(streamData.subtitles ?? []),
-  ].filter((s) => Boolean(s.direct_download_url));
+  ].filter((s) => Boolean(s.file));
 
-  const seenIds = new Set<string>();
-  const langCount: Record<string, number> = {};
+  const seenLabels = new Set<string>();
   const uniqueSubs = allSubs.filter((s) => {
-    if (seenIds.has(s.id)) return false;
-    seenIds.add(s.id);
+    if (seenLabels.has(s.label)) return false;
+    seenLabels.add(s.label);
     return true;
-  });
-
-  const labelledSubs = uniqueSubs.map((s) => {
-    const lang = s.language.toUpperCase();
-    langCount[lang] = (langCount[lang] ?? 0) + 1;
-    const count = langCount[lang];
-    return { ...s, label: count === 1 ? lang : `${lang} ${count}` };
   });
 
   return (
@@ -270,14 +262,13 @@ export default function PlayerInner({
             className="absolute inset-0 block w-full h-full object-cover opacity-0 transition-opacity data-[visible]:opacity-100"
           />
         )}
-        {labelledSubs.map((s) => (
+        {uniqueSubs.map((s) => (
           <Track
-            key={`sub-${s.id}`}
+            key={`sub-${s.label}`}
             kind="subtitles"
-            src={s.direct_download_url!}
+            src={s.file}
             label={s.label}
-            lang={s.language}
-            default={s.language === "en" && s.label === "EN"}
+            default={s.label === "English"}
           />
         ))}
       </MediaProvider>
