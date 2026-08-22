@@ -4,17 +4,13 @@ const nextConfig: NextConfig = {
   output: "standalone",
   turbopack: {},
   productionBrowserSourceMaps: false,
-  // Cap the in-memory fetch/ISR data cache to 50 MB. Without this, the cache
-  // grows unboundedly as unique pages are served — a large movie/TV catalog
-  // can push this into hundreds of MB.
-  cacheMaxMemorySize: 52428800, // 50 MB
   
   // High-Performance memory & build limits
   experimental: {
     // Limits the memory consumed by caching compiler threads
     webpackMemoryOptimizations: true,
     // Prevents Next.js from spawning excessive worker processes on Ubuntu
-    cpus: 2,
+    cpus: 2, 
   },
 
   async headers() {

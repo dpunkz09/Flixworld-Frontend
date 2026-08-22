@@ -56,18 +56,16 @@ export default function PwaRegister() {
       setInstallPrompt(_capturedPrompt);
     };
 
-    const installedHandler = () => {
+    window.addEventListener("beforeinstallprompt", handler);
+
+    window.addEventListener("appinstalled", () => {
       setInstalled(true);
       setInstallPrompt(null);
       _capturedPrompt = null;
-    };
-
-    window.addEventListener("beforeinstallprompt", handler);
-    window.addEventListener("appinstalled", installedHandler);
+    });
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handler);
-      window.removeEventListener("appinstalled", installedHandler);
     };
   }, []);
 

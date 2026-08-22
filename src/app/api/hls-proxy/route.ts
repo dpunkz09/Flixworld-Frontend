@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CACHE_SUBTITLE_MAX_AGE, CACHE_HLS_SEGMENT_MAX_AGE } from "@/lib/cache-config";
-import { createRateLimiter, getClientIp } from "@/lib/rate-limit";
-
-// 120 HLS segment requests per minute per IP — enough for normal playback
-// (a 6s segment cadence = 10/min; 120 gives headroom for multiple quality levels)
-// without allowing the proxy to be abused as an open relay.
-const limiter = createRateLimiter({ windowMs: 60_000, max: 120 });
 
 const BINARY_EXTS = new Set(["ts", "aac", "mp4", "m4s", "m4v", "m4a", "fmp4"]);
 const CONTENT_TYPES: Record<string, string> = {
@@ -68,16 +62,6 @@ function toAbsolute(uri: string, base: string): string {
 }
 
 export async function GET(request: NextRequest) {
-  // Rate-limit to prevent the proxy being used as an open relay
-  const ip = getClientIp(request);
-  const rl = limiter.check(ip);
-  if (!rl.allowed) {
-    return new NextResponse("Too Many Requests", {
-      status: 429,
-      headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
-    });
-  }
-
   const target = request.nextUrl.searchParams.get("url");
 
   if (!target) {
@@ -155,17 +139,14 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Binary segments — stream directly, no buffering ───────────────────────
-    // Forward Content-Length so the Node.js HTTP layer knows the response size
-    // upfront and can pipe bytes through without accumulating them in the heap.
     if (isBinary) {
-      const contentLength = upstream.headers.get("content-length");
-      const binaryHeaders: Record<string, string> = {
-        "Content-Type": CONTENT_TYPES[ext] ?? "application/octet-stream",
-        "Cache-Control": `public, max-age=${CACHE_HLS_SEGMENT_MAX_AGE}`,
-        ...corsHeaders,
-      };
-      if (contentLength) binaryHeaders["Content-Length"] = contentLength;
-      return new NextResponse(upstream.body, { headers: binaryHeaders });
+      return new NextResponse(upstream.body, {
+        headers: {
+          "Content-Type": CONTENT_TYPES[ext] ?? "application/octet-stream",
+          "Cache-Control": `public, max-age=${CACHE_HLS_SEGMENT_MAX_AGE}`,
+          ...corsHeaders,
+        },
+      });
     }
 
     // ── Fallback: stream as-is ─────────────────────────────────────────────
