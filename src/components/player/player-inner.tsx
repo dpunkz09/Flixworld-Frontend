@@ -46,6 +46,8 @@ export interface PlayerInnerProps {
   srcOverride?: string | null;
   /** MIME type hint for srcOverride — defaults to HLS */
   srcOverrideType?: "application/x-mpegurl" | "video/mp4";
+  /** Referer to forward via the HLS proxy for srcOverride streams that require it */
+  srcReferer?: string | null;
 }
 
 const HLS_PROXY = "https://proxy.jpaworx.com/?url=";
@@ -213,16 +215,22 @@ export default function PlayerInner({
   registerPlayerControls,
   srcOverride,
   srcOverrideType,
+  srcReferer,
 }: PlayerInnerProps) {
   const activeUrl  = srcOverride ?? streamData.data.stream_urls[0];
   const activeType = srcOverride
     ? (srcOverrideType ?? "video/mp4")
     : "application/x-mpegurl";
 
-  // Only proxy through HLS proxy when it's an HLS stream
-  const src = activeType === "application/x-mpegurl"
-    ? proxyHls(activeUrl)
-    : activeUrl;
+  // Only proxy through HLS proxy when it's an HLS stream.
+  // For HLS streams that require a specific Referer, append ?referer= so
+  // the Cloudflare worker forwards it to the origin (e.g. goodstream.cc).
+  const src = (() => {
+    if (activeType !== "application/x-mpegurl") return activeUrl;
+    const proxied = `${HLS_PROXY}${encodeURIComponent(activeUrl)}`;
+    if (srcReferer) return `${proxied}&referer=${encodeURIComponent(srcReferer)}`;
+    return proxied;
+  })();
 
   const onHlsInstance = useCallback((event: CustomEvent) => {
     const hls = event.detail as {

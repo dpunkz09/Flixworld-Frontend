@@ -240,6 +240,7 @@ export default function VidstackPlayer(props: VidstackPlayerProps) {
                 : "video/mp4"
               : undefined
           }
+          srcReferer={isOverride ? (activeServer.referer ?? null) : null}
         />
       </Suspense>
     </div>

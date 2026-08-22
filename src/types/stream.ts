@@ -8,6 +8,8 @@ export interface StreamServer {
   label: string;
   url: string;
   type: "hls" | "mp4";
+  /** Referer header required by the stream origin — forwarded to the HLS proxy */
+  referer?: string;
 }
 
 export interface StreamData {
