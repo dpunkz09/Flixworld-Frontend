@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   LayoutDashboard, Users, MessageSquare, Flag, Star,
   Link2, Database, BarChart2, Search, LogOut,
-  ChevronRight, Menu, X, Settings, Download,
+  ChevronRight, Menu, X, Settings, Download, Subtitles,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -17,6 +17,7 @@ const NAV = [
   { href: "/admin/reports",         label: "Reported Videos", icon: Flag },
   { href: "/admin/featured",        label: "Featured Movies", icon: Star },
   { href: "/admin/stream-urls",     label: "Stream URLs",     icon: Link2 },
+  { href: "/admin/subtitles",       label: "Subtitles",       icon: Subtitles },
   { href: "/admin/most-watched",    label: "Most Watched",    icon: BarChart2 },
   { href: "/admin/search-keywords", label: "Search Keywords", icon: Search },
   { href: "/admin/cache",           label: "Cache & TMDB",    icon: Database },
