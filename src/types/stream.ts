@@ -3,6 +3,13 @@ export interface Subtitle {
   file: string;
 }
 
+export interface StreamServer {
+  id: string;
+  label: string;
+  url: string;
+  type: "hls" | "mp4";
+}
+
 export interface StreamData {
   title: string;
   imdb_id: string;
@@ -22,4 +29,6 @@ export interface StreamResponse {
   subtitles: Subtitle[];
   subtitles_provider: string;
   thumbnails_url?: string | null;
+  /** All available stream servers including primary */
+  servers: StreamServer[];
 }

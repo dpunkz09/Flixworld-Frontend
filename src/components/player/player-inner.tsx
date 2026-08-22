@@ -41,6 +41,11 @@ export interface PlayerInnerProps {
   onPartyPause?: (currentTime: number) => void;
   onPartySeek?: (currentTime: number) => void;
   registerPlayerControls?: (controls: PlayerControls) => void;
+  /** Override the active stream URL (used for server switching). When provided
+   *  this takes precedence over streamData.data.stream_urls[0]. */
+  srcOverride?: string | null;
+  /** MIME type hint for srcOverride — defaults to HLS */
+  srcOverrideType?: "application/x-mpegurl" | "video/mp4";
 }
 
 const HLS_PROXY = "https://proxy.jpaworx.com/?url=";
@@ -206,8 +211,18 @@ export default function PlayerInner({
   onPartyPause,
   onPartySeek,
   registerPlayerControls,
+  srcOverride,
+  srcOverrideType,
 }: PlayerInnerProps) {
-  const src = proxyHls(streamData.data.stream_urls[0]);
+  const activeUrl  = srcOverride ?? streamData.data.stream_urls[0];
+  const activeType = srcOverride
+    ? (srcOverrideType ?? "video/mp4")
+    : "application/x-mpegurl";
+
+  // Only proxy through HLS proxy when it's an HLS stream
+  const src = activeType === "application/x-mpegurl"
+    ? proxyHls(activeUrl)
+    : activeUrl;
 
   const onHlsInstance = useCallback((event: CustomEvent) => {
     const hls = event.detail as {
@@ -247,7 +262,7 @@ export default function PlayerInner({
   return (
     <MediaPlayer
       title={title}
-      src={{ src, type: "application/x-mpegurl" }}
+      src={{ src, type: activeType }}
       playsInline
       autoPlay
       muted

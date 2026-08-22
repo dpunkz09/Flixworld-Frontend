@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, lazy, Suspense } from "react";
-import type { StreamResponse } from "@/types/stream";
+import type { StreamResponse, StreamServer } from "@/types/stream";
 import { useAuth } from "@/hooks/useAuth";
 import { getTitleProgressApi } from "@/lib/watch-api";
 import { clientApiHeaders } from "@/lib/client-fetch";
@@ -42,6 +42,38 @@ function PlayerShell({
   );
 }
 
+// ─── Server picker ────────────────────────────────────────────────────────────
+function ServerPicker({
+  servers,
+  activeId,
+  onChange,
+}: {
+  servers: StreamServer[];
+  activeId: string;
+  onChange: (server: StreamServer) => void;
+}) {
+  if (servers.length <= 1) return null;
+  return (
+    <div className="flex items-center gap-2 flex-wrap mb-2">
+      <span className="text-xs text-zinc-500 shrink-0">Server</span>
+      {servers.map((s) => (
+        <button
+          key={s.id}
+          onClick={() => onChange(s)}
+          className={[
+            "text-xs px-3 py-1 rounded-full border transition-colors",
+            s.id === activeId
+              ? "bg-red-600 border-red-500 text-white"
+              : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white hover:border-white/30",
+          ].join(" ")}
+        >
+          {s.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ─── Public component ─────────────────────────────────────────────────────────
 interface VidstackPlayerProps {
   streamApiUrl: string;
@@ -76,6 +108,7 @@ export default function VidstackPlayer(props: VidstackPlayerProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
+  const [activeServer, setActiveServer] = useState<StreamServer | null>(null);
   const { token } = useAuth();
 
   // Step 1: mark as mounted after hydration
@@ -92,6 +125,7 @@ export default function VidstackPlayer(props: VidstackPlayerProps) {
     setError(null);
     setStreamData(null);
     setResumePosition(0);
+    setActiveServer(null);
 
     const streamFetch = fetch(props.streamApiUrl, {
         headers: clientApiHeaders(
@@ -131,6 +165,9 @@ export default function VidstackPlayer(props: VidstackPlayerProps) {
         if (!cancelled) {
           setStreamData(data);
           setResumePosition(position);
+          // Default to Server 1 (primary) if available
+          const primary = data.servers?.find((s) => s.id === "primary") ?? data.servers?.[0] ?? null;
+          setActiveServer(primary);
         }
       })
       .catch((e: unknown) => {
@@ -168,24 +205,43 @@ export default function VidstackPlayer(props: VidstackPlayerProps) {
 
   // Only reached in the browser after mount + successful fetch.
   // React.lazy + Suspense loads player-inner.tsx on demand.
+  const servers = streamData.servers ?? [];
+  const isOverride = activeServer && activeServer.id !== "primary";
+
   return (
-    <Suspense fallback={<PlayerShell label="Loading player…" spinner />}>
-      <PlayerInner
-        streamData={streamData}
-        title={props.title}
-        posterUrl={props.posterUrl}
-        resumePosition={resumePosition}
-        onEnded={props.onEnded}
-        tracking={
-          props.tracking
-            ? { ...props.tracking, title: props.title }
-            : undefined
-        }
-        onPartyPlay={props.onPartyPlay}
-        onPartyPause={props.onPartyPause}
-        onPartySeek={props.onPartySeek}
-        registerPlayerControls={props.registerPlayerControls}
+    <div className="w-full">
+      <Suspense fallback={<PlayerShell label="Loading player…" spinner />}>
+        <PlayerInner
+          key={activeServer?.id ?? "primary"}
+          streamData={streamData}
+          title={props.title}
+          posterUrl={props.posterUrl}
+          resumePosition={resumePosition}
+          onEnded={props.onEnded}
+          tracking={
+            props.tracking
+              ? { ...props.tracking, title: props.title }
+              : undefined
+          }
+          onPartyPlay={props.onPartyPlay}
+          onPartyPause={props.onPartyPause}
+          onPartySeek={props.onPartySeek}
+          registerPlayerControls={props.registerPlayerControls}
+          srcOverride={isOverride ? activeServer.url : null}
+          srcOverrideType={
+            isOverride
+              ? activeServer.type === "hls"
+                ? "application/x-mpegurl"
+                : "video/mp4"
+              : undefined
+          }
+        />
+      </Suspense>
+      <ServerPicker
+        servers={servers}
+        activeId={activeServer?.id ?? "primary"}
+        onChange={setActiveServer}
       />
-    </Suspense>
+    </div>
   );
 }
