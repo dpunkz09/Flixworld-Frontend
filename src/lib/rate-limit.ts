@@ -43,6 +43,19 @@ export function createRateLimiter(opts: {
   return {
     check(key: string): RateLimitResult {
       const now = Date.now();
+
+      // Hard size cap: if the Map grows beyond 50 000 entries (e.g. from
+      // rotating-IP attacks), run cleanup immediately. If still over the
+      // limit after pruning expired entries, reject the request to protect
+      // server memory — this is a degraded-mode safety valve, not normal
+      // operation.
+      if (store.size >= 50_000) {
+        cleanup();
+        if (store.size >= 50_000) {
+          return { allowed: false, remaining: 0, resetAt: now + opts.windowMs };
+        }
+      }
+
       const existing = store.get(key);
 
       if (!existing || existing.resetAt <= now) {

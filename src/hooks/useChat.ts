@@ -150,6 +150,11 @@ export function useChat(
   // Reconnect when auth changes (login / logout)
   useEffect(() => {
     connect();
+    return () => {
+      socketRef.current?.removeAllListeners();
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, guestName]);
 
