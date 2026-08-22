@@ -52,16 +52,16 @@ function ServerPicker({
   activeId: string;
   onChange: (server: StreamServer) => void;
 }) {
-  if (servers.length <= 1) return null;
+  if (servers.length === 0) return null;
   return (
-    <div className="flex items-center gap-2 flex-wrap mb-2">
+    <div className="flex items-center gap-2 flex-wrap mb-3">
       <span className="text-xs text-zinc-500 shrink-0">Server</span>
       {servers.map((s) => (
         <button
           key={s.id}
           onClick={() => onChange(s)}
           className={[
-            "text-xs px-3 py-1 rounded-full border transition-colors",
+            "text-xs px-3 py-1.5 rounded-full border transition-colors",
             s.id === activeId
               ? "bg-red-600 border-red-500 text-white"
               : "bg-zinc-900 border-white/10 text-zinc-400 hover:text-white hover:border-white/30",
@@ -210,6 +210,11 @@ export default function VidstackPlayer(props: VidstackPlayerProps) {
 
   return (
     <div className="w-full">
+      <ServerPicker
+        servers={servers}
+        activeId={activeServer?.id ?? "primary"}
+        onChange={setActiveServer}
+      />
       <Suspense fallback={<PlayerShell label="Loading player…" spinner />}>
         <PlayerInner
           key={activeServer?.id ?? "primary"}
@@ -237,11 +242,6 @@ export default function VidstackPlayer(props: VidstackPlayerProps) {
           }
         />
       </Suspense>
-      <ServerPicker
-        servers={servers}
-        activeId={activeServer?.id ?? "primary"}
-        onChange={setActiveServer}
-      />
     </div>
   );
 }
