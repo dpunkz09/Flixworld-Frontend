@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import type { Genre } from "@/types/detail";
 import WishlistButton from "@/components/wishlist-button";
 import ResumeButton from "@/components/resume-button";
+import TrailerButton from "@/components/detail/trailer-button";
 
 interface DetailHeroProps {
   title: string;
@@ -159,16 +160,7 @@ export default function DetailHero({
               {wishlist && (
                 <ResumeButton type={wishlist.type} tmdbId={wishlist.tmdbId} />
               )}
-              {trailerKey && (
-                <a
-                  href={`https://www.youtube.com/watch?v=${trailerKey}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-full px-6 py-3 text-sm transition-colors backdrop-blur-sm border border-white/20"
-                >
-                  ▶ Trailer
-                </a>
-              )}
+              {trailerKey && <TrailerButton trailerKey={trailerKey} />}
               {wishlist && (
                 <WishlistButton
                   tmdbId={wishlist.tmdbId}
