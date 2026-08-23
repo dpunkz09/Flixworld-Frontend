@@ -66,7 +66,7 @@ export const SITE_CONFIG_DEFAULT: SiteConfig = {
  */
 export async function fetchSiteConfig(): Promise<SiteConfig> {
   try {
-    const res = await apiFetch(`${API_BASE}/party/config`, {
+    const res = await apiFetch(`${API_BASE}/settings/config`, {
       next: { revalidate: 300 }, // revalidate every 5 minutes — safe for admin settings
     });
     if (!res.ok) return SITE_CONFIG_DEFAULT;

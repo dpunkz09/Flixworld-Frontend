@@ -51,8 +51,7 @@ interface VidstackPlayerProps {
   streamToken?: string;
   /** Called when the video finishes playing — use for auto-play next episode */
   onEnded?: () => void;
-  /** When provided, enables watch-count increment + progress saving */
-  tracking?: {
+  /** When provided, enables watch-count increment + progress saving */  tracking?: {
     type: "movie" | "tv";
     tmdbId: number;
     posterPath?: string | null;
@@ -61,10 +60,6 @@ interface VidstackPlayerProps {
     season?: number;
     episode?: number;
   };
-  /** Sync callbacks for co-watch features (no-op if unused) */
-  onPartyPlay?: (currentTime: number) => void;
-  onPartyPause?: (currentTime: number) => void;
-  onPartySeek?: (currentTime: number) => void;
   registerPlayerControls?: (controls: import("./player-inner").PlayerControls) => void;
 }
 
@@ -181,9 +176,6 @@ export default function VidstackPlayer(props: VidstackPlayerProps) {
             ? { ...props.tracking, title: props.title }
             : undefined
         }
-        onPartyPlay={props.onPartyPlay}
-        onPartyPause={props.onPartyPause}
-        onPartySeek={props.onPartySeek}
         registerPlayerControls={props.registerPlayerControls}
       />
     </Suspense>

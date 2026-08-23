@@ -37,9 +37,6 @@ export interface PlayerInnerProps {
   resumePosition?: number;
   onEnded?: () => void;
   tracking?: WatchTrackingMeta;
-  onPartyPlay?: (currentTime: number) => void;
-  onPartyPause?: (currentTime: number) => void;
-  onPartySeek?: (currentTime: number) => void;
   registerPlayerControls?: (controls: PlayerControls) => void;
 }
 
@@ -51,23 +48,17 @@ function proxyThumbnails(url: string) { return `${THUMB_PROXY}${encodeURICompone
 
 // ─── TrackingLayer ────────────────────────────────────────────────────────────
 // Must live inside <MediaPlayer> to use Vidstack context hooks.
-// Handles: watch-progress tracking, resume seek, auto-play next, party sync.
+// Handles: watch-progress tracking, resume seek, auto-play next.
 
 function TrackingLayer({
   tracking,
   resumePosition,
   onEnded: onEndedProp,
-  onPartyPlay,
-  onPartyPause,
-  onPartySeek,
   registerPlayerControls,
 }: {
   tracking: WatchTrackingMeta;
   resumePosition: number;
   onEnded?: () => void;
-  onPartyPlay?: (currentTime: number) => void;
-  onPartyPause?: (currentTime: number) => void;
-  onPartySeek?: (currentTime: number) => void;
   registerPlayerControls?: (controls: PlayerControls) => void;
 }) {
   const { paused, ended, currentTime, duration, canPlay, seeking } = useMediaStore();
@@ -82,16 +73,10 @@ function TrackingLayer({
   const onTimeUpdateRef = useRef(onTimeUpdate);
   const onPauseRef = useRef(onPause);
   const onEndedRef = useRef(onEnded);
-  const onPartyPlayRef = useRef(onPartyPlay);
-  const onPartyPauseRef = useRef(onPartyPause);
-  const onPartySeekRef = useRef(onPartySeek);
   onPlayRef.current = onPlay;
   onTimeUpdateRef.current = onTimeUpdate;
   onPauseRef.current = onPause;
   onEndedRef.current = onEnded;
-  onPartyPlayRef.current = onPartyPlay;
-  onPartyPauseRef.current = onPartyPause;
-  onPartySeekRef.current = onPartySeek;
 
   // ── State tracking refs ──────────────────────────────────────────────────────
   const wasPlayingRef = useRef(false);
@@ -112,7 +97,7 @@ function TrackingLayer({
   // Player is ready when canPlay is true and the player instance exists
   const isReady = canPlay && player != null;
 
-  // ── Register imperative controls for party remote sync ───────────────────────
+  // ── Register imperative controls (exposed for external callers) ─────────────
   // Only register after canPlay so the player is fully initialised.
   useEffect(() => {
     if (!registerPlayerControls || !isReady) return;
@@ -139,9 +124,6 @@ function TrackingLayer({
         incrementFiredRef.current = true;
         onPlayRef.current(currentTime, duration);
       }
-      if (!wasPlayingRef.current) {
-        onPartyPlayRef.current?.(currentTime);
-      }
       wasPlayingRef.current = true;
       wasPausedRef.current = false;
     }
@@ -160,7 +142,6 @@ function TrackingLayer({
       wasPausedRef.current = true;
       wasPlayingRef.current = false;
       onPauseRef.current(currentTime, duration);
-      onPartyPauseRef.current?.(currentTime);
     }
   }, [isReady, paused, currentTime, duration]);
 
@@ -175,7 +156,6 @@ function TrackingLayer({
       // Ignore the initial resume-seek and duplicate same-position seeks
       if (Math.abs(currentTime - lastSeekTimeRef.current) > 0.5) {
         lastSeekTimeRef.current = currentTime;
-        onPartySeekRef.current?.(currentTime);
       }
     }
   }, [isReady, seeking, currentTime]);
@@ -202,9 +182,6 @@ export default function PlayerInner({
   resumePosition = 0,
   onEnded: onEndedProp,
   tracking,
-  onPartyPlay,
-  onPartyPause,
-  onPartySeek,
   registerPlayerControls,
 }: PlayerInnerProps) {
   const src = proxyHls(streamData.data.stream_urls[0]);
@@ -280,9 +257,6 @@ export default function PlayerInner({
           tracking={tracking}
           resumePosition={resumePosition}
           onEnded={onEndedProp}
-          onPartyPlay={onPartyPlay}
-          onPartyPause={onPartyPause}
-          onPartySeek={onPartySeek}
           registerPlayerControls={registerPlayerControls}
         />
       )}

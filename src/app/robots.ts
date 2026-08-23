@@ -58,7 +58,8 @@ export default function robots(): MetadataRoute.Robots {
           "Feedfetcher-Google",
           "ias-va",
           "ias-ie",
-          "weborama-fetcher"
+          "weborama-fetcher",
+          "SirdataBot"
         ],
         disallow: ["/"],
       },

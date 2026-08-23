@@ -46,7 +46,7 @@ async function getPageData(): Promise<{ show: boolean; data: DownloadPageData }>
   try {
     // Both endpoints are public -- no auth needed
     const [configRes, versionRes] = await Promise.all([
-      apiFetch(`${API_BASE}/party/config`, { cache: "no-store" }),
+      apiFetch(`${API_BASE}/settings/config`, { cache: "no-store" }),
       apiFetch(`${API_BASE}/app/version`,  { cache: "no-store" }),
     ]);
 
