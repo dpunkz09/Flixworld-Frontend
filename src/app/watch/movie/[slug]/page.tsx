@@ -19,9 +19,10 @@ export async function generateMetadata(props: WatchMovieProps): Promise<Metadata
     return {
       title: `Watch ${movie.title}`,
       description: movie.overview ?? undefined,
+      robots: { index: false, follow: false },
     };
   } catch {
-    return { title: "Watch — FlixWorld" };
+    return { title: "Watch — FlixWorld", robots: { index: false, follow: false } };
   }
 }
 

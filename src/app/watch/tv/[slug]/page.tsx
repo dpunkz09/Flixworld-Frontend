@@ -20,9 +20,10 @@ export async function generateMetadata(props: WatchTvProps): Promise<Metadata> {
     return {
       title: `Watch ${show.title}`,
       description: show.overview ?? undefined,
+      robots: { index: false, follow: false },
     };
   } catch {
-    return { title: "Watch — FlixWorld" };
+    return { title: "Watch — FlixWorld", robots: { index: false, follow: false } };
   }
 }
 

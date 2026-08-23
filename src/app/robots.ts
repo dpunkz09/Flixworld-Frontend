@@ -16,9 +16,6 @@ export default function robots(): MetadataRoute.Robots {
           "Slackbot",
           "TelegramBot",
           "Discordbot",
-          "Googlebot",
-          "Bingbot",
-          "Yandex"
         ],
         allow: ["/"],
       },
@@ -63,14 +60,17 @@ export default function robots(): MetadataRoute.Robots {
         ],
         disallow: ["/"],
       },
-      // Default rules for well-behaved crawlers (Googlebot, etc.)
+      // Default rules for well-behaved crawlers (Googlebot, Bingbot, etc.)
       {
         userAgent: "*",
         allow: [
           "/",
           "/movies",
+          "/movies/",
           "/tv",
+          "/tv/",
           "/country",
+          "/country/",
           "/search",
           "/person/",
           "/network/",
