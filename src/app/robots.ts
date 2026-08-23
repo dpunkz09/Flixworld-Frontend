@@ -16,6 +16,9 @@ export default function robots(): MetadataRoute.Robots {
           "Slackbot",
           "TelegramBot",
           "Discordbot",
+          "Googlebot",
+          "Bingbot",
+          "Yandex"
         ],
         allow: ["/"],
       },
@@ -53,6 +56,9 @@ export default function robots(): MetadataRoute.Robots {
           "AdsBot-Google",
           "Google-Extended",
           "Feedfetcher-Google",
+          "ias-va",
+          "ias-ie",
+          "weborama-fetcher"
         ],
         disallow: ["/"],
       },
