@@ -8,7 +8,9 @@ import MediaGrid from "@/components/media-grid";
 import Pagination from "@/components/pagination";
 import { MediaGridSkeleton, FiltersSkeleton } from "@/components/skeletons";
 
-export const dynamic = "force-dynamic";
+// ISR: revalidate every 5 minutes — movie lists don't change second-to-second.
+// Pages with unique filter params are rendered on-demand and cached individually.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "Movies — FlixWorld",

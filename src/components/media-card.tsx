@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Star, Tv, Film, Heart, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -36,12 +37,19 @@ export default function MediaCard({ item, gridMode = false, priority = false }: 
       {/* Poster */}
       <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-zinc-800 ring-1 ring-white/5 transition-all duration-300 group-hover:ring-white/30 group-hover:scale-105 group-hover:shadow-2xl group-hover:shadow-black/60">
         {item.poster_url ? (
-          <img
+          <Image
             src={item.poster_url}
             alt={item.title}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            loading={priority ? "eager" : "lazy"}
-            fetchPriority={priority ? "high" : "auto"}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            // Grid mode: 3 cols mobile → 4 sm → 5 md → 6 lg → 7 xl → 8 2xl
+            // Row mode: fixed widths w-32 sm:w-36 md:w-44
+            sizes={
+              gridMode
+                ? "(max-width: 640px) 33vw, (max-width: 768px) 25vw, (max-width: 1024px) 20vw, (max-width: 1280px) 16vw, (max-width: 1536px) 14vw, 12vw"
+                : "(max-width: 640px) 128px, (max-width: 768px) 144px, 176px"
+            }
+            priority={priority}
           />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-800 text-zinc-500">

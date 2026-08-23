@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { ChevronLeft, ChevronRight, Play, Info, Star } from "lucide-react";
@@ -86,11 +87,15 @@ export default function HeroCarousel({ items }: HeroCarouselProps) {
             isTransitioning ? "opacity-0" : "opacity-100"
           }`}
         >
-          <img
+          <Image
             src={item.backdrop_url}
             alt={item.title}
-            className="absolute inset-0 w-full h-full object-cover object-top"
-            fetchPriority="high"
+            fill
+            priority
+            className="object-cover object-top"
+            // Full-viewport-width backdrop — serve the largest srcset entry
+            // that matches the actual display width at each breakpoint.
+            sizes="100vw"
           />
         </div>
       )}
